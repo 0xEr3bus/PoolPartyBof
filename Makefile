@@ -7,7 +7,10 @@ RM := rm
 all: PoolPartyBof
 
 PoolPartyBof:
-	$(CC_x64) -o $(COMPILED)/PoolPartyBof.x64.o -c src/PoolPartyBof.c
+	$(CC_x64) -o $(COMPILED)/PoolPartyBof_V8.x64.o -c src/Varient_8.c
+	$(CC_x64) -o $(COMPILED)/PoolPartyBof_V7.x64.o -c src/Varient_7.c
+	$(CC_x64) -o $(COMPILED)/PoolPartyBof_V6.x64.o -c src/Varient_6.c
+	$(CC_x64) -o $(COMPILED)/PoolPartyBof_V5.x64.o -c src/Varient_5.c
 
 clean:
 	$(RM) $(COMPILED)/*.o

