@@ -1,6 +1,13 @@
 # PoolParty BOF
 
-A beacon object file implementation of [PoolParty Process Injection Technique](https://github.com/SafeBreach-Labs/PoolParty/) by [@_SafeBreach_](https://www.safebreach.com/) and [@_0xDeku_](https://twitter.com/_0xDeku), that abuses Windows Thread Pools. The BOF only supports the 8th technique/variant called `Insert TP_TIMER work item to the target process's thread pool.` I will try to keep adding more variants.
+A beacon object file implementation of [PoolParty Process Injection Technique](https://github.com/SafeBreach-Labs/PoolParty/) by [@_SafeBreach_](https://www.safebreach.com/) and [@_0xDeku_](https://twitter.com/_0xDeku), that abuses Windows Thread Pools. The BOF supports the 5 technique/variant:
+- Insert TP_TIMER work item to the target process's thread pool.
+- Insert TP_ALPC work item to the target process's thread pool.
+- Insert TP_JOB work item to the target process's thread pool.
+- Insert TP_DIRECT work item to the target process's thread pool.
+- Insert TP_TIMER work item to the target process's thread pool.
+
+I will try to keep adding remaining variants.
 
 ## Usage
 ```
