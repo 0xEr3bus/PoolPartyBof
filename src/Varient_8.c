@@ -105,8 +105,7 @@ void go(char * args, int len) {
     datap parser;
     BeaconDataParse(&parser, args, len);
     m_dwTargetPid = BeaconDataInt(&parser);
-    m_szShellcodeSize = BeaconDataLength(&parser);
-    m_cShellcode = BeaconDataExtract(&parser, NULL);
-	BeaconPrintf(CALLBACK_OUTPUT, "[INFO] 	Shellcode Size: %d bytes", m_szShellcodeSize);
-	Inject();
+    m_cShellcode = BeaconDataExtract(&parser, &m_szShellcodeSize);
+    BeaconPrintf(CALLBACK_OUTPUT, "[INFO] 	Shellcode Size: %d bytes", m_szShellcodeSize);
+    Inject();
 }

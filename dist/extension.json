@@ -1,0 +1,33 @@
+{
+    "name": "PoolPartyBof",
+    "version": "1.0.0",
+    "command_name": "PoolPartyBof",
+    "extension_author": "0xEr3bus",
+    "original_author": "0xDeku",
+    "repo_url": "https://github.com/0xEr3bus/PoolPartyBof/",
+    "help": "Inject shellcode by abusing Windows Thread Pools",
+    "long_help": "",
+    "depends_on": "coff-loader",
+    "entrypoint": "go",
+    "files": [
+        {
+            "os": "windows",
+            "arch": "amd64",
+            "path": "PoolPartyBof_V8.x64.o"
+        }
+    ],
+    "arguments": [
+        {
+            "name": "pid",
+            "desc": "PID of a process.",
+            "type": "int",
+            "optional": false
+        },
+        {
+            "name": "shellcodeFile",
+            "desc": "File that contains shellcode",
+            "type": "file",
+            "optional": false
+        }
+    ]
+}

@@ -1,7 +1,7 @@
 # PoolParty BOF
 
 A beacon object file implementation of [PoolParty Process Injection Technique](https://github.com/SafeBreach-Labs/PoolParty/) by [@_SafeBreach_](https://www.safebreach.com/) and [@_0xDeku_](https://twitter.com/_0xDeku), that abuses Windows Thread Pools. The BOF supports the 5 technique/variant:
-- Insert TP_TIMER work item to the target process's thread pool.
+- Insert TP_IO work item to the target process's thread pool.
 - Insert TP_ALPC work item to the target process's thread pool.
 - Insert TP_JOB work item to the target process's thread pool.
 - Insert TP_DIRECT work item to the target process's thread pool.
@@ -51,8 +51,12 @@ PoolPartyBof 3092 HTTPSLocal 6
 ```
 
 ![](img/PoolPartyBof.png)
+![](img/PoolPartyBofHavoc.png)
 
 > The BOF can be further used with [Process Injection Hooks](https://hstechdocs.helpsystems.com/manuals/cobaltstrike/current/userguide/content/topics/malleable-c2-extend_control-process-injection.htm) provided within Cobaltstrike, and [Rastamouse](https://twitter.com/_RastaMouse) has a perfect [blog](https://offensivedefence.co.uk/posts/cs-process-inject-kit/) too.
+
+
+> Added [Havoc](https://github.com/HavocFramework/Havoc/) BOF support. You are welcome to open an issue, if something doesn't work. For [sliver C2](https://github.com/BishopFox/sliver) it partially works, but Somehow the remote process crashes when executed the shellcode.
 
 
 ### Credits and Orginal Work
