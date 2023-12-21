@@ -59,7 +59,7 @@ PoolPartyBof <Process ID> <Path To Shellcode> <Variant>
 > Added [Havoc](https://github.com/HavocFramework/Havoc/) BOF support. You are welcome to open an issue, if something doesn't work. For [sliver C2](https://github.com/BishopFox/sliver) it partially works, but Somehow the remote process crashes when executed the shellcode.
 
 
-### Credits and Orginal Work
+### Credits and Original Work
 - [Blackhat Slides](https://www.blackhat.com/eu-23/briefings/schedule/#the-pool-party-you-will-never-forget-new-process-injection-techniques-using-windows-thread-pools-35446)
 - [Alon Leviev](https://twitter.com/_0xDeku)
 - [SafeBreach](https://www.safebreach.com/)
